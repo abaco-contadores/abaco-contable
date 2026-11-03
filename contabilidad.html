@@ -32,7 +32,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}td,th{padding:6px 4px;t
 #st h1,#st h3{color:#0A0A0A}#st th{border-bottom:2px solid var(--gold)}#st td{border-color:#ddd}
 @media(min-width:800px){nav{top:0;bottom:auto;width:200px;flex-direction:column;border-top:0;border-right:1px solid #2a2a2a;padding-top:30px}nav button{text-align:left;padding:14px 22px}nav button.on{box-shadow:inset 3px 0 var(--gold)}main{margin-left:220px;padding-bottom:40px}}
 @media print{body>*:not(#st){display:none!important}#st{position:static}.np{display:none}}
-.ln{display:grid;grid-template-columns:1fr 88px 88px;gap:6px;margin:6px 0}.ln input{margin:0;padding:10px 8px}dialog.wide{width:min(640px,96vw);max-height:92vh;overflow:auto}.sc{overflow-x:auto}.sc table{min-width:520px}input.q{margin:8px 0}select{width:100%;background:var(--bg);color:#fff;border:1px solid #333;border-radius:10px;padding:11px;font:inherit}.ind{display:block}</style></head><body>
+.ln{display:grid;grid-template-columns:1fr 88px 88px;gap:6px;margin:6px 0}.ln input{margin:0;padding:10px 8px}dialog.wide{width:min(640px,96vw);max-height:92vh;overflow:auto}.sc{overflow-x:auto}.sc table{min-width:520px}input.q{margin:8px 0}select{width:100%;background:var(--bg);color:#fff;border:1px solid #333;border-radius:10px;padding:11px;font:inherit}.ind{display:block}#st .card{background:#fff;border:1px solid #ddd;color:#0A0A0A}#st .k,#st p{color:#444}#st .n,#st b{color:#0A0A0A}#st .gold{color:#8a7448}#st .tag{color:#333;border-color:#999}#st .sc{overflow:visible}#st .sc table{min-width:0}@media print{#st .card{break-inside:avoid}}</style></head><body>
 <nav id="nav"></nav><main id="m"></main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script><script>
 const SUPA_URL='https://eqlbssgdipitcoqtejpi.supabase.co',SUPA_KEY='sb_publishable__iDo09pX5WLH4GU1qrGKzQ_ZLp2uc8p';
@@ -73,7 +73,7 @@ function chooseAcc(cb,onlyActive){const d=document.createElement('dialog');d.cla
 const nav=[['home','Resumen'],['diario','Diario'],['mayor','Mayor'],['bal','Balance'],['plan','Cuentas']];
 function go(t){S.tab=t;render();scrollTo(0,0)}
 function render(){if(!me)return;$nav.innerHTML=nav.map(n=>`<button class="${S.tab==n[0]?'on':''}" onclick="go('${n[0]}')">${n[1]}</button>`).join('');
- $m.innerHTML='<div class="acts" style="margin:0 0 8px"><button class="g s" onclick="location.href=\'./\'">‹ Inicio</button></div>'+{home,diario,mayor,bal:balV,plan}[S.tab]()}
+ $m.innerHTML='<div class="acts" style="margin:0 0 8px"><button class="g s" onclick="location.href=\'./\'">‹ Inicio</button><button class="g s" onclick="printView()">Imprimir / PDF</button><button class="g s" onclick="exportXlsx()">Excel</button></div>'+{home,diario,mayor,bal:balV,plan}[S.tab]()}
 function home(){const sum=f=>mov().filter(a=>f(a.code)).reduce((s,a)=>s+sal(a),0);
  const act=sum(c=>c[0]=='1'),pas=sum(c=>c[0]=='2'),cap=sum(c=>c[0]=='3'),ing=sum(c=>c[0]=='4'||c.startsWith('71')),egr=sum(c=>'568'.includes(c[0])||c.startsWith('72')),res=ing-egr;
  const TD=lin.reduce((s,l)=>s+l.d,0),TC=lin.reduce((s,l)=>s+l.c,0),ok=TD==TC,eq=act==pas+cap+res;
@@ -139,6 +139,37 @@ function newAcc(){form('Nueva cuenta',[['code','Código (solo números, ej. 5311
  if(!/^\d{3,9}$/.test(c))return'El código debe tener solo números (de 3 a 9 dígitos).';if(!n)return'El nombre es obligatorio.';if(acc.some(a=>a.code==c))return'Ese código ya existe.';
  let p=null;for(let k=c.length-1;k>0&&!p;k--)p=acc.find(a=>a.code==c.slice(0,k));if(!p||p.kind!='titulo')return'Debe colgar de una cuenta de título existente (por ejemplo '+(p?'no puede colgar de '+p.code:'1, 11, 5311')+').';
  return q(sb.from('accounts').insert({code:c,name:n,parent_code:p.code,level:c.length,kind:'movimiento',nature:('234'.includes(c[0])||c.startsWith('71'))?'acreedora':'deudora'}))})}
+function loadX(){return window.XLSX?Promise.resolve():new Promise((ok,no)=>{const e=document.createElement('script');e.src='https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';e.onload=ok;e.onerror=()=>no(new Error('No se pudo cargar el generador de Excel. Revisa tu conexión.'));document.head.append(e)})}
+async function exportXlsx(){try{await loadX()}catch(e){alert(e.message);return}
+ const [a,b]=rng(),N=c=>c/100,T=S.tab,sheets=[],sh=(n,r)=>sheets.push([n,r]);
+ const dRows=all=>{const r=[['N° asiento','Fecha','Glosa','Código','Cuenta','Debe','Haber','Estado']];ent.filter(e=>all||(e.entry_date>=a&&e.entry_date<=b)).sort((x,y)=>x.number-y.number).forEach(e=>(byE[e.id]||[]).forEach(l=>r.push([e.number,e.entry_date,e.description,A[l.account_id].code,A[l.account_id].name,N(l.d),N(l.c),e.status=='anulado'?'Anulado':e.reversal_of?'Contra-asiento':'Activo'])));return r};
+ const bRows=upto=>{const m={};lin.forEach(l=>{if(E[l.entry_id].entry_date<=upto){const x=m[l.account_id]??={d:0,c:0};x.d+=l.d;x.c+=l.c}});const r=[['Código','Cuenta','Debe','Haber','Saldo deudor','Saldo acreedor']];let D=0,C=0,SD=0,SC=0;
+  mov().filter(x=>m[x.id]).forEach(x=>{const y=m[x.id],sd=Math.max(y.d-y.c,0),sc=Math.max(y.c-y.d,0);D+=y.d;C+=y.c;SD+=sd;SC+=sc;r.push([x.code,x.name,N(y.d),N(y.c),N(sd),N(sc)])});r.push(['','TOTAL',N(D),N(C),N(SD),N(SC)]);return r};
+ const pRows=()=>[['Código','Cuenta','Tipo','Naturaleza','Activa','Saldo'],...acc.map(x=>[x.code,x.name,x.kind=='titulo'?'Título':'Movimiento',x.nature,x.active?'Sí':'No',x.kind=='movimiento'?N(sal(x)):''])];
+ let name='Abaco-'+T;
+ if(T=='diario')sh('Libro diario',dRows(false));
+ else if(T=='bal')sh('Balance',bRows(b));
+ else if(T=='plan')sh('Plan de cuentas',pRows());
+ else if(T=='mayor'){if(!S.acc){alert('Primero elige una cuenta.');return}
+  const ac=A[S.acc],sg=l=>ac.nature=='deudora'?l.d-l.c:l.c-l.d,al=lin.filter(l=>l.account_id==ac.id).map(l=>({l,e:E[l.entry_id]})).sort((x,y)=>x.e.entry_date<y.e.entry_date?-1:x.e.entry_date>y.e.entry_date?1:x.e.number-y.e.number);
+  let s=al.filter(x=>x.e.entry_date<a).reduce((t,x)=>t+sg(x.l),0);const r=[[lbl(ac)],['Fecha','N°','Glosa','Debe','Haber','Saldo']];if(a>'0000-01-01')r.push(['','','Saldo anterior','','',N(s)]);
+  al.filter(x=>x.e.entry_date>=a&&x.e.entry_date<=b).forEach(({l,e})=>{s+=sg(l);r.push([e.entry_date,e.number,e.description,N(l.d),N(l.c),N(s)])});sh('Mayor',r);name+='-'+ac.code}
+ else{name='Abaco-respaldo-completo';sh('Plan de cuentas',pRows());sh('Libro diario',dRows(true));sh('Balance',bRows('9999-12-31'))}
+ const wb=XLSX.utils.book_new();
+ sheets.forEach(([n,r])=>{const ws=XLSX.utils.aoa_to_sheet(r),cols=Math.max(...r.map(x=>x.length));ws['!cols']=Array.from({length:cols},(_,i)=>({wch:Math.min(50,Math.max(10,...r.map(x=>String(x[i]??'').length)))}));XLSX.utils.book_append_sheet(wb,ws,n.slice(0,31))});
+ XLSX.writeFile(wb,name+'-'+TODAY+'.xlsx')}
+function printView(){const t={home:'Resumen contable',diario:'Libro diario',mayor:'Libro mayor',bal:'Balance de comprobación',plan:'Plan de cuentas'}[S.tab];
+ if(S.tab=='mayor'&&!S.acc){alert('Primero elige una cuenta.');return}
+ const keep=S.more;S.more=1e9;const html={home,diario,mayor,bal:balV,plan}[S.tab]();S.more=keep;
+ const w=document.createElement('div');w.innerHTML=html;
+ w.querySelectorAll('select').forEach(x=>x.closest('.card')?.remove());
+ w.querySelectorAll('button,input,datalist,.acts,h1').forEach(x=>x.remove());
+ const [a,b]=rng(),per=S.tab=='home'||S.tab=='plan'?'':(S.f.m=='todo'?'Período: todo el historial':'Período: del '+dt(a)+' al '+dt(b)),
+  acct=S.tab=='mayor'&&S.acc?'Cuenta: '+esc(lbl(A[S.acc]))+' · ':'';
+ const d=document.createElement('div');d.id='st';
+ d.innerHTML=`<div class="np acts"><button class="b" onclick="print()">Imprimir / guardar PDF</button><button class="g" onclick="this.closest('#st').remove()" style="color:#000">Cerrar</button></div>
+<h3 style="color:#C2A97F;margin-top:12px">Ábaco Contable</h3><h1>${t}</h1><p>${acct}${per}</p>${w.innerHTML}
+<p style="margin-top:22px;font-size:12px;color:#666">Emitido el ${dt(TODAY)} · Documento generado por Ábaco Contable</p>`;document.body.append(d)}
 function loginView(msg){$nav.innerHTML='';$m.innerHTML=`<h1>Ábaco Contable</h1><p class="k">Inicia sesión para ver tu contabilidad en cualquier dispositivo.</p><div class="card"><label>Correo<input id="em" type="email" autocomplete="email"></label><label>Contraseña (mínimo 6 caracteres)<input id="pw" type="password" autocomplete="current-password"></label><p class="bad" id="lm">${msg||''}</p><div class="acts"><button class="b" onclick="auth('in')">Entrar</button><button class="g" onclick="auth('up')">Crear cuenta</button></div></div>`}
 async function auth(m){const email=g('em').value.trim(),password=g('pw').value;g('lm').textContent='Un momento…';
  const r=m=='in'?await sb.auth.signInWithPassword({email,password}):await sb.auth.signUp({email,password});
