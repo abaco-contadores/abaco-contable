@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="es"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Ábaco Contable</title><link rel="manifest" href="manifest.webmanifest"><link rel="icon" type="image/png" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png"><meta name="theme-color" content="#0A0A0A">
+<title>Ábaco</title><link rel="manifest" href="manifest.webmanifest"><link rel="icon" type="image/png" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png"><meta name="theme-color" content="#0A0A0A">
 <style>
 :root{--bg:#0A0A0A;--c1:#141414;--c2:#1c1c1c;--gold:#C2A97F;--gr:#D9D9D9;--mut:#8d8a84;--ok:#8fb996;--bad:#d98b7a;color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 *{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
@@ -33,121 +33,17 @@ table{width:100%;border-collapse:collapse;font-size:13px}td,th{padding:6px 4px;t
 @media(min-width:800px){nav{top:0;bottom:auto;width:200px;flex-direction:column;border-top:0;border-right:1px solid #2a2a2a;padding-top:30px}nav button{text-align:left;padding:14px 22px}nav button.on{box-shadow:inset 3px 0 var(--gold)}main{margin-left:220px;padding-bottom:40px}}
 @media print{body>*:not(#st){display:none!important}#st{position:static}.np{display:none}}
 .ln{display:grid;grid-template-columns:1fr 88px 88px;gap:6px;margin:6px 0}.ln input{margin:0;padding:10px 8px}dialog.wide{width:min(640px,96vw);max-height:92vh;overflow:auto}.sc{overflow-x:auto}.sc table{min-width:520px}input.q{margin:8px 0}select{width:100%;background:var(--bg);color:#fff;border:1px solid #333;border-radius:10px;padding:11px;font:inherit}.ind{display:block}</style></head><body>
-<nav id="nav"></nav><main id="m"></main>
+<main id="m"></main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script><script>
-const SUPA_URL='https://eqlbssgdipitcoqtejpi.supabase.co',SUPA_KEY='sb_publishable__iDo09pX5WLH4GU1qrGKzQ_ZLp2uc8p';
-const sb=supabase.createClient(SUPA_URL,SUPA_KEY);
-const TODAY=new Date().toISOString().slice(0,10),$nav=document.getElementById('nav'),$m=document.getElementById('m'),g=i=>document.getElementById(i);
-let me=null,acc=[],ent=[],lin=[],A={},E={},bal={},byE={},S={tab:'home',acc:null,more:30,q:'',f:{m:'todo',a:'',b:''}};
-const c100=x=>Math.round(Number(x)*100),cents=v=>Math.round(parseFloat(String(v).replace(',','.'))*100);
-const n2=c=>(c/100).toLocaleString('es',{minimumFractionDigits:2,maximumFractionDigits:2}),dt=d=>d?d.split('-').reverse().join('/'):'';
-const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const q=async p=>{const r=await p;return r.error?r.error.message:null};
-async function all(t,o){let r=[],i=0;for(;;){const {data,error}=await sb.from(t).select('*').order(o).range(i,i+999);if(error)throw error;r=r.concat(data);if(data.length<1000)return r;i+=1000}}
-async function load(){try{[acc,ent,lin]=await Promise.all([all('accounts','code'),all('entries','number'),all('entry_lines','id')]);idx();return true}catch(e){alert('No se pudo cargar: '+(e.message||e));return false}}
-function idx(){A={};acc.forEach(a=>A[a.id]=a);E={};ent.forEach(e=>E[e.id]=e);bal={};byE={};
- lin.forEach(l=>{l.d=c100(l.debit);l.c=c100(l.credit);const b=bal[l.account_id]??={d:0,c:0};b.d+=l.d;b.c+=l.c;(byE[l.entry_id]??=[]).push(l)})}
-const sal=a=>{const b=bal[a.id]||{d:0,c:0};return a.nature=='deudora'?b.d-b.c:b.c-b.d};
-const lbl=a=>a.code+' · '+a.name,mov=()=>acc.filter(a=>a.kind=='movimiento');
-const byLbl=v=>acc.find(a=>a.code==String(v).trim().split(' ')[0]);
-function form(title,fields,cb){const d=document.createElement('dialog');
- d.innerHTML=`<form><h3>${title}</h3>${fields.map(f=>`<label>${f[1]}<input name="${f[0]}" type="${f[2]||'text'}" ${f[3]||''} value="${esc(f[4]||'')}"></label>`).join('')}<p class="bad" id="er"></p><div class="row"><button type="button" class="g">Cancelar</button><button>Guardar</button></div></form>`;
- document.body.append(d);d.showModal();d.querySelector('.g').onclick=()=>d.remove();
- d.querySelector('form').onsubmit=async e=>{e.preventDefault();const b=e.submitter;if(b.disabled)return;b.disabled=true;let err;
-  try{err=await cb(Object.fromEntries(new FormData(e.target)))}catch(x){err=x.message}
-  if(err){d.querySelector('#er').textContent=err;b.disabled=false}else{d.remove();await load();render()}}}
-const iso=d=>d.toISOString().slice(0,10),wd=d=>['domingo','lunes','martes','miércoles','jueves','viernes','sábado'][new Date(d+'T00:00:00Z').getUTCDay()];
-function rng(){const f=S.f,t=new Date(TODAY+'T00:00:00Z'),y=t.getUTCFullYear(),m=t.getUTCMonth();
- if(f.m=='hoy')return[TODAY,TODAY];
- if(f.m=='sem'){const s=new Date(t);s.setUTCDate(t.getUTCDate()-(t.getUTCDay()+6)%7);const e=new Date(s);e.setUTCDate(s.getUTCDate()+6);return[iso(s),iso(e)]}
- if(f.m=='mes')return[iso(new Date(Date.UTC(y,m,1))),iso(new Date(Date.UTC(y,m+1,0)))];
- if(f.m=='ant')return[iso(new Date(Date.UTC(y,m-1,1))),iso(new Date(Date.UTC(y,m,0)))];
- if(f.m=='rango')return[f.a||'0000-01-01',f.b||'9999-12-31'];
- return['0000-01-01','9999-12-31']}
-function fbar(){const f=S.f;return`<div class="card"><select onchange="S.f.m=this.value;S.more=30;render()">${[['todo','Todo el historial'],['hoy','Hoy'],['sem','Esta semana'],['mes','Este mes'],['ant','Mes anterior'],['rango','Rango de fechas']].map(o=>`<option value="${o[0]}" ${f.m==o[0]?'selected':''}>${o[1]}</option>`).join('')}</select>${f.m=='rango'?`<div class="grid"><label>Desde<input type="date" value="${f.a}" onchange="S.f.a=this.value;S.more=30;render()"></label><label>Hasta<input type="date" value="${f.b}" onchange="S.f.b=this.value;S.more=30;render()"></label></div>`:''}</div>`}
-function chooseAcc(cb,onlyActive){const d=document.createElement('dialog');d.className='wide';d.innerHTML='<h3>Elegir cuenta</h3><input class="q" id="pq" placeholder="Buscar por código o nombre" autocomplete="off"><div id="pl2" style="max-height:58vh;overflow:auto"></div><div class="row"><button class="g" id="pc">Cancelar</button></div>';
- document.body.append(d);d.showModal();
- const draw=()=>{const t=d.querySelector('#pq').value.toLowerCase();d.querySelector('#pl2').innerHTML=mov().filter(a=>(!onlyActive||a.active)&&(!t||a.code.includes(t)||a.name.toLowerCase().includes(t))).slice(0,80).map(a=>`<div class="card click" data-id="${a.id}">${esc(lbl(a))}</div>`).join('')||'<p class="k">Sin resultados.</p>'};
- draw();d.querySelector('#pq').oninput=draw;d.querySelector('#pc').onclick=()=>d.remove();
- d.querySelector('#pl2').onclick=e=>{const c=e.target.closest('[data-id]');if(c){d.remove();cb(A[c.dataset.id])}}}
-const nav=[['home','Resumen'],['diario','Diario'],['mayor','Mayor'],['bal','Balance'],['plan','Cuentas']];
-function go(t){S.tab=t;render();scrollTo(0,0)}
-function render(){if(!me)return;$nav.innerHTML=nav.map(n=>`<button class="${S.tab==n[0]?'on':''}" onclick="go('${n[0]}')">${n[1]}</button>`).join('');
- $m.innerHTML={home,diario,mayor,bal:balV,plan}[S.tab]()}
-function home(){const sum=f=>mov().filter(a=>f(a.code)).reduce((s,a)=>s+sal(a),0);
- const act=sum(c=>c[0]=='1'),pas=sum(c=>c[0]=='2'),cap=sum(c=>c[0]=='3'),ing=sum(c=>c[0]=='4'||c.startsWith('71')),egr=sum(c=>'568'.includes(c[0])||c.startsWith('72')),res=ing-egr;
- const TD=lin.reduce((s,l)=>s+l.d,0),TC=lin.reduce((s,l)=>s+l.c,0),ok=TD==TC,eq=act==pas+cap+res;
- const mm={};lin.forEach(l=>{const c=A[l.account_id].code,k=E[l.entry_id].entry_date.slice(0,7),ig=c[0]=='4'||c.startsWith('71'),eg='568'.includes(c[0])||c.startsWith('72');if(!ig&&!eg)return;const o=mm[k]??={i:0,e:0};if(ig)o.i+=l.c-l.d;else o.e+=l.d-l.c});const ms=Object.keys(mm).sort().reverse().slice(0,6);
- const last=[...ent].sort((a,b)=>b.number-a.number).slice(0,5);
- return`<h1>Ábaco Contable</h1><p class="k">${esc(me.email)} · sincronizado en la nube</p>
-<div class="grid"><div class="card"><div class="k">Activo</div><div class="n gold">${n2(act)}</div></div><div class="card"><div class="k">Pasivo</div><div class="n">${n2(pas)}</div></div>
-<div class="card"><div class="k">Capital</div><div class="n">${n2(cap)}</div></div><div class="card"><div class="k">Resultado (ingresos − egresos)</div><div class="n ${res>=0?'ok':'bad'}">${n2(res)}</div></div>
-<div class="card"><div class="k">Ingresos</div><div class="n ok">${n2(ing)}</div></div><div class="card"><div class="k">Costos y gastos</div><div class="n">${n2(egr)}</div></div></div>
-<div class="card"><div class="row"><span>Debe = Haber</span><span class="tag ${ok?'p':'v'}">${ok?'Cuadra':'No cuadra'}</span></div><div class="k">${n2(TD)} / ${n2(TC)}</div>
-<div class="row" style="margin-top:8px"><span>Activo = Pasivo + Capital + Resultado</span><span class="tag ${eq?'p':'v'}">${eq?'Cuadra':'Revisar'}</span></div></div>
-<div class="acts"><button class="b" onclick="newEntry()">Nuevo asiento</button></div>
-<div class="card"><h3>Resultado por mes</h3><div class="sc"><table><tr><th>Mes</th><th>Ingresos</th><th>Egresos</th><th>Resultado</th></tr>${ms.map(k=>`<tr><td>${k.split('-').reverse().join('/')}</td><td>${n2(mm[k].i)}</td><td>${n2(mm[k].e)}</td><td>${n2(mm[k].i-mm[k].e)}</td></tr>`).join('')||'<tr><td colspan="4">Sin datos todavía.</td></tr>'}</table></div></div><div class="card"><h3>Últimos asientos</h3>${last.map(e=>`<div class="row k"><span>N° ${e.number} · ${esc(e.description)}</span><span>${dt(e.entry_date)}</span></div>`).join('')||'<p class="k">Aún no hay asientos. Pulsa «Nuevo asiento».</p>'}</div>
-<div class="acts"><button class="g s" onclick="logout()">Cerrar sesión</button></div>`}
-function diario(){const [a,b]=rng(),es=ent.filter(e=>e.entry_date>=a&&e.entry_date<=b).sort((x,y)=>x.entry_date<y.entry_date?1:x.entry_date>y.entry_date?-1:y.number-x.number),sh=es.slice(0,S.more);let cur='';
- const tot=d=>{let D=0,C=0;es.filter(e=>e.entry_date==d).forEach(e=>(byE[e.id]||[]).forEach(l=>{D+=l.d;C+=l.c}));return[D,C]};
- return`<div class="row"><h1>Libro diario</h1><button class="b" onclick="newEntry()">Nuevo asiento</button></div>${fbar()}<div class="k">${es.length} asientos en el período</div>
-${sh.map(e=>{let h='';if(e.entry_date!=cur){cur=e.entry_date;const [D,C]=tot(cur);h=`<div class="row k" style="margin-top:14px"><b class="gold">${wd(cur)} ${dt(cur)}</b><span>Debe ${n2(D)} · Haber ${n2(C)}</span></div>`}
-const ls=byE[e.id]||[],an=e.status=='anulado';return h+`<div class="card"><div class="row"><b>N° ${e.number}</b><span class="tag ${an?'v':''}">${an?'Anulado':e.reversal_of?'Contra-asiento':'Activo'}</span></div>
-<div class="k">${esc(e.description)}${an?' · Motivo: '+esc(e.void_reason):''}</div>
-<table>${ls.map(l=>`<tr><td>${esc(lbl(A[l.account_id]))}</td><td>${l.d?n2(l.d):''}</td><td>${l.c?n2(l.c):''}</td></tr>`).join('')}</table>
-${!an&&!e.reversal_of?`<div class="acts"><button class="g s" onclick="voidE('${e.id}')">Anular</button></div>`:''}</div>`}).join('')||'<div class="card k">Sin asientos en este período.</div>'}
-${es.length>S.more?'<div class="acts"><button class="g" onclick="S.more+=30;render()">Ver más</button></div>':''}`}
-function newEntry(){const d=document.createElement('dialog');d.className='wide';
- d.innerHTML=`<form><h3>Nuevo asiento</h3><label>Fecha<input name="date" type="date" required value="${TODAY}"></label><label>Glosa / descripción<input name="desc" required></label>
-<div id="rows"></div>
-<div class="acts"><button type="button" class="g s" id="add">+ Línea</button></div><div class="card" id="tot"></div><p class="bad" id="er"></p>
-<div class="row"><button type="button" class="g" id="cx">Cancelar</button><button id="ok" disabled>Guardar asiento</button></div></form>`;
- document.body.append(d);d.showModal();
- const row=()=>{const r=document.createElement('div');r.className='ln';r.innerHTML='<input class="ac" readonly placeholder="Toca para elegir cuenta"><input class="db" type="number" step="0.01" min="0" inputmode="decimal" placeholder="Debe"><input class="hb" type="number" step="0.01" min="0" inputmode="decimal" placeholder="Haber">';d.querySelector('#rows').append(r);const ai=r.querySelector('.ac');ai.onclick=()=>chooseAcc(x=>{ai.value=lbl(x);calc()},true)};
- row();row();
- const read=()=>[...d.querySelectorAll('.ln')].map(r=>({a:r.querySelector('.ac').value,d:cents(r.querySelector('.db').value||0),c:cents(r.querySelector('.hb').value||0)})).filter(x=>x.a.trim()||x.d||x.c);
- const calc=()=>{const L=read(),D=L.reduce((s,x)=>s+(x.d||0),0),C=L.reduce((s,x)=>s+(x.c||0),0);
-  d.querySelector('#tot').innerHTML=`<div class="row"><span>Debe</span><b>${n2(D)}</b></div><div class="row"><span>Haber</span><b>${n2(C)}</b></div><div class="row"><span>Diferencia</span><b class="${D==C?'ok':'bad'}">${n2(D-C)}</b></div>`;
-  d.querySelector('#ok').disabled=!(L.length>=2&&D==C&&D>0)};
- d.addEventListener('input',calc);calc();
- d.querySelector('#add').onclick=()=>row();d.querySelector('#cx').onclick=()=>d.remove();
- d.querySelector('form').onsubmit=async e=>{e.preventDefault();const b=d.querySelector('#ok');if(b.disabled)return;b.disabled=true;const er=d.querySelector('#er');er.textContent='';
-  const lines=[];for(const x of read()){const a=byLbl(x.a);if(!a||a.kind!='movimiento'||!a.active){er.textContent='Cuenta no válida: "'+x.a+'". Elige una de la lista.';return calc()}
-   if(x.d<0||x.c<0||(x.d>0&&x.c>0)||(!x.d&&!x.c)){er.textContent='Cada línea lleva un importe en Debe o en Haber, no en ambos.';return calc()}
-   lines.push({account_id:a.id,debit:x.d/100,credit:x.c/100})}
-  const f=new FormData(e.target),r=await sb.rpc('create_entry',{p_date:f.get('date'),p_desc:String(f.get('desc')).trim(),p_lines:lines});
-  if(r.error){er.textContent=r.error.message;return calc()}d.remove();await load();S.tab='diario';render()}}
-function voidE(id){const e=E[id];form('¿Anular el asiento N° '+e.number+'? Se crea un contra-asiento y el original queda marcado. No se borra nada.',[['why','Motivo (obligatorio)','text','required']],async o=>{
- if(!o.why.trim())return'Indica el motivo.';const r=await sb.rpc('void_entry',{p_id:id,p_reason:o.why.trim()});return r.error?r.error.message:null})}
-function mayor(){const a=S.acc?A[S.acc]:null,[f1,f2]=rng();let s=0,rows='',open=0;
- if(a){const sg=l=>a.nature=='deudora'?l.d-l.c:l.c-l.d,all=lin.filter(l=>l.account_id==a.id).map(l=>({l,e:E[l.entry_id]})).sort((x,y)=>x.e.entry_date<y.e.entry_date?-1:x.e.entry_date>y.e.entry_date?1:x.e.number-y.e.number);
-  s=all.filter(x=>x.e.entry_date<f1).reduce((t,x)=>t+sg(x.l),0);open=s;
-  rows=all.filter(x=>x.e.entry_date>=f1&&x.e.entry_date<=f2).map(({l,e})=>{s+=sg(l);return`<tr><td>${dt(e.entry_date)}</td><td>${e.number}</td><td>${esc(e.description)}</td><td>${l.d?n2(l.d):''}</td><td>${l.c?n2(l.c):''}</td><td>${n2(s)}</td></tr>`}).join('')}
- return`<h1>Libro mayor</h1><button class="g" style="width:100%;text-align:left;margin:8px 0" onclick="chooseAcc(x=>{S.acc=x.id;render()})">${a?esc(lbl(a)):'Elegir cuenta…'}</button>${fbar()}
-${a?`<div class="card"><div class="k">${a.nature=='deudora'?'Cuenta deudora':'Cuenta acreedora'} · saldo al cierre del período</div><div class="n gold">${n2(s)}</div></div>
-<div class="sc"><table><tr><th>Fecha</th><th>N°</th><th>Glosa</th><th>Debe</th><th>Haber</th><th>Saldo</th></tr>${f1>'0000-01-01'?`<tr><td colspan="5"><i>Saldo anterior al período</i></td><td>${n2(open)}</td></tr>`:''}${rows||'<tr><td colspan="6">Sin movimientos en el período.</td></tr>'}</table></div>`:'<div class="card k">Toca «Elegir cuenta» para ver su libro mayor.</div>'}`}
-function balV(){const [,f2]=rng(),m={};lin.forEach(l=>{if(E[l.entry_id].entry_date<=f2){const b=m[l.account_id]??={d:0,c:0};b.d+=l.d;b.c+=l.c}});
- let D=0,C=0,SD=0,SC=0;const rows=mov().filter(a=>m[a.id]).map(a=>{const b=m[a.id],sd=Math.max(b.d-b.c,0),sc=Math.max(b.c-b.d,0);D+=b.d;C+=b.c;SD+=sd;SC+=sc;return`<tr><td>${esc(lbl(a))}</td><td>${n2(b.d)}</td><td>${n2(b.c)}</td><td>${sd?n2(sd):''}</td><td>${sc?n2(sc):''}</td></tr>`}).join('');
- return`<h1>Balance de comprobación</h1>${fbar()}<div class="k">${S.f.m=='todo'?'Saldos acumulados a hoy':'Saldos acumulados hasta el '+dt(f2)}</div><div class="sc"><table><tr><th>Cuenta</th><th>Debe</th><th>Haber</th><th>Saldo deudor</th><th>Saldo acreedor</th></tr>${rows||'<tr><td colspan="5">Sin movimientos.</td></tr>'}
-<tr><th>TOTAL</th><th>${n2(D)}</th><th>${n2(C)}</th><th>${n2(SD)}</th><th>${n2(SC)}</th></tr></table></div><div class="card"><span class="tag ${D==C&&SD==SC?'p':'v'}">${D==C&&SD==SC?'Cuadra':'No cuadra'}</span></div>`}
-function planRows(){const t=S.q.toLowerCase();return acc.filter(a=>!t||a.code.includes(t)||a.name.toLowerCase().includes(t)).map(a=>`<div class="card" style="margin-left:${Math.min(a.code.length,7)*2}px"><div class="row"><span style="${a.kind=='titulo'?'font-weight:700;color:#C2A97F':''}">${esc(lbl(a))}</span>${a.active?'':'<span class="tag v">Inactiva</span>'}</div>
-${a.kind=='movimiento'?`<div class="row"><span class="k">${a.nature} · saldo ${n2(sal(a))}</span><span><button class="g s" onclick="renAcc('${a.id}')">Renombrar</button> <button class="g s" onclick="togAcc('${a.id}')">${a.active?'Desactivar':'Activar'}</button></span></div>`:''}</div>`).join('')}
-function plan(){return`<div class="row"><h1>Plan de cuentas</h1><button class="b" onclick="newAcc()">Nueva</button></div><input class="q" placeholder="Buscar por código o nombre" value="${esc(S.q)}" oninput="S.q=this.value;g('pl').innerHTML=planRows()"><div id="pl">${planRows()}</div>`}
-function renAcc(id){form('Renombrar cuenta',[['name','Nombre','text','required',A[id].name]],o=>o.name.trim()?q(sb.from('accounts').update({name:o.name.trim()}).eq('id',id)):'El nombre es obligatorio.')}
-function togAcc(id){const a=A[id];form(a.active?'¿Desactivar "'+esc(a.name)+'"? No se podrá usar en asientos nuevos; su historial se conserva.':'¿Activar la cuenta?',[],()=>q(sb.from('accounts').update({active:!a.active}).eq('id',id)))}
-function newAcc(){form('Nueva cuenta',[['code','Código (solo números, ej. 5311009)','text','required inputmode="numeric"'],['name','Nombre','text','required']],o=>{const c=o.code.trim(),n=o.name.trim();
- if(!/^\d{3,9}$/.test(c))return'El código debe tener solo números (de 3 a 9 dígitos).';if(!n)return'El nombre es obligatorio.';if(acc.some(a=>a.code==c))return'Ese código ya existe.';
- let p=null;for(let k=c.length-1;k>0&&!p;k--)p=acc.find(a=>a.code==c.slice(0,k));if(!p||p.kind!='titulo')return'Debe colgar de una cuenta de título existente (por ejemplo '+(p?'no puede colgar de '+p.code:'1, 11, 5311')+').';
- return q(sb.from('accounts').insert({code:c,name:n,parent_code:p.code,level:c.length,kind:'movimiento',nature:('234'.includes(c[0])||c.startsWith('71'))?'acreedora':'deudora'}))})}
-function loginView(msg){$nav.innerHTML='';$m.innerHTML=`<h1>Ábaco Contable</h1><p class="k">Inicia sesión para ver tu contabilidad en cualquier dispositivo.</p><div class="card"><label>Correo<input id="em" type="email" autocomplete="email"></label><label>Contraseña (mínimo 6 caracteres)<input id="pw" type="password" autocomplete="current-password"></label><p class="bad" id="lm">${msg||''}</p><div class="acts"><button class="b" onclick="auth('in')">Entrar</button><button class="g" onclick="auth('up')">Crear cuenta</button></div></div>`}
-async function auth(m){const email=g('em').value.trim(),password=g('pw').value;g('lm').textContent='Un momento…';
- const r=m=='in'?await sb.auth.signInWithPassword({email,password}):await sb.auth.signUp({email,password});
- if(r.error){g('lm').textContent=r.error.message;return}
- if(!r.data.session){g('lm').textContent='Revisa tu correo para confirmar la cuenta y luego pulsa Entrar.';return}
- me=r.data.session.user;await start()}
-async function start(){$m.innerHTML='<p class="k">Cargando…</p>';if(await load()){if(!acc.length){const r=await sb.rpc('seed_chart');if(r.error)alert(r.error.message);await load()}render()}}
-async function logout(){await sb.auth.signOut();me=null;acc=[];ent=[];lin=[];loginView()}
-sb.auth.getSession().then(({data})=>{if(data.session){me=data.session.user;start()}else loginView()});
-document.addEventListener('visibilitychange',()=>{if(!document.hidden&&me)load().then(ok=>ok&&!document.querySelector('dialog[open]')&&render())});
+const sb=supabase.createClient('https://eqlbssgdipitcoqtejpi.supabase.co','sb_publishable__iDo09pX5WLH4GU1qrGKzQ_ZLp2uc8p'),$m=document.getElementById('m'),g=i=>document.getElementById(i);
+function hub(u){$m.innerHTML=`<div style="text-align:center;margin:10px 0 18px"><img src="icon-192.png" alt="Ábaco" style="width:92px;height:92px;border-radius:22px"><h1 style="margin-top:12px">Ábaco</h1><p class="k">${u.email}</p></div>
+<div class="card click" onclick="location.href='contabilidad.html'"><h2 class="gold">Contabilidad</h2><p class="k">Libro diario, libro mayor, balance de comprobación y plan de cuentas.</p></div>
+<div class="card click" onclick="location.href='cxc-cxp.html'"><h2 class="gold">CxC y CxP</h2><p class="k">Cuentas por cobrar, cuentas por pagar y financiamientos, con estados de cuenta.</p></div>
+<div class="acts"><button class="g s" onclick="out()">Cerrar sesión</button></div>`}
+function login(msg){$m.innerHTML=`<div style="text-align:center;margin:10px 0 18px"><img src="icon-192.png" alt="Ábaco" style="width:92px;height:92px;border-radius:22px"><h1 style="margin-top:12px">Ábaco</h1></div><div class="card"><label>Correo<input id="em" type="email" autocomplete="email"></label><label>Contraseña (mínimo 6 caracteres)<input id="pw" type="password" autocomplete="current-password"></label><p class="bad" id="lm">${msg||''}</p><div class="acts"><button class="b" onclick="auth('in')">Entrar</button><button class="g" onclick="auth('up')">Crear cuenta</button></div></div>`}
+async function auth(m){const email=g('em').value.trim(),password=g('pw').value;g('lm').textContent='Un momento…';const r=m=='in'?await sb.auth.signInWithPassword({email,password}):await sb.auth.signUp({email,password});
+ if(r.error){g('lm').textContent=r.error.message;return}if(!r.data.session){g('lm').textContent='Revisa tu correo para confirmar la cuenta y luego pulsa Entrar.';return}hub(r.data.session.user)}
+async function out(){await sb.auth.signOut();login()}
+sb.auth.getSession().then(({data})=>data.session?hub(data.session.user):login());
 if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 </script></body></html>
